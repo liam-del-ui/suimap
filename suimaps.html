@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Suimaps</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body { margin: 0; }
+    #map { height: 100vh; width: 100vw; }
+
+    /* Bottom search bar */
+    #searchBox {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      background: white;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      font-family: Arial;
+      display: flex;
+      gap: 6px;
+    }
+    #searchInput {
+      width: 180px;
+      padding: 5px;
+    }
+    #searchBtn, #satBtn, #mapBtn {
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<div id="searchBox">
+  <input id="searchInput" type="text" placeholder="Search location..." />
+  <button id="searchBtn">Search</button>
+  <button id="mapBtn">Map</button>
+  <button id="satBtn">Satellite</button>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+  // Create map
+  const map = L.map('map').setView([51.2737, 0.5217], 13);
+
+  // Normal map (403-proof)
+  const normalLayer = L.tileLayer('https://{s}.tile.openstreetmap.de/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: 'Suimaps'
+  }).addTo(map);
+
+  // Satellite layer
+  const satelliteLayer = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {
+      maxZoom: 19,
+      attribution: 'Esri Satellite'
+    }
+  );
+
+  // Start marker
+  L.marker([51.2737, 0.5217]).addTo(map)
+    .bindPopup("Suimaps Start Point")
+    .openPopup();
+
+  // Click to add marker
+  map.on("click", function(e) {
+    L.marker(e.latlng).addTo(map)
+      .bindPopup("Marker at " + e.latlng.lat.toFixed(5) + ", " + e.latlng.lng.toFixed(5));
+  });
+
+  // SEARCH FUNCTION
+  function runSearch() {
+    const query = document.getElementById("searchInput").value.trim();
+    if (!query) {
+      alert("Type a place to search.");
+      return;
+    }
+
+    fetch("https://nominatim.openstreetmap.org/search?format=json&q=" + encodeURIComponent(query))
+      .then(response => response.json())
+      .then(data => {
+        if (data.length === 0) {
+          alert("Location not found.");
+          return;
+        }
+
+        const lat = parseFloat(data[0].lat);
+        const lon = parseFloat(data[0].lon);
+
+        map.setView([lat, lon], 14);
+
+        L.marker([lat, lon]).addTo(map)
+          .bindPopup("Search result: " + query)
+          .openPopup();
+      })
+      .catch(() => alert("Search error."));
+  }
+
+  // Button click
+  document.getElementById("searchBtn").onclick = runSearch;
+
+  // ENTER KEY SUPPORT
+  document.getElementById("searchInput").addEventListener("keypress", function(e) {
+    if (e.key === "Enter") {
+      runSearch();
+    }
+  });
+
+  // SWITCH TO NORMAL MAP
+  document.getElementById("mapBtn").onclick = function () {
+    map.removeLayer(satelliteLayer);
+    normalLayer.addTo(map);
+  };
+
+  // SWITCH TO SATELLITE
+  document.getElementById("satBtn").onclick = function () {
+    map.removeLayer(normalLayer);
+    satelliteLayer.addTo(map);
+  };
+</script>
+
+</body>
+</html>
+
